@@ -1,0 +1,30 @@
+Threshold  1.0
+	   T Neg | F negative [374.0, 126.0]
+	   ------------------
+	   F Pos | T positive [0.0, 339.0] 
+Q2= 0.8498212157330155 MCC  0.7384552315694284 PRECISION  1.0
+Threshold  0.1
+	   T Neg | F negative [482.0, 18.0]
+	   ------------------
+	   F Pos | T positive [0.0, 339.0] 
+Q2= 0.9785458879618594 MCC  0.9567627490570445 PRECISION  1.0
+Threshold  0.01
+	   T Neg | F negative [499.0, 1.0]
+	   ------------------
+	   F Pos | T positive [0.0, 339.0] 
+Q2= 0.99880810488677 MCC  0.9975293007638187 PRECISION  1.0
+Threshold  0.001
+	   T Neg | F negative [500.0, 0.0]
+	   ------------------
+	   F Pos | T positive [0.0, 339.0] 
+Q2= 1.0 MCC  1.0 PRECISION  1.0
+Threshold  0.0001
+	   T Neg | F negative [500.0, 0.0]
+	   ------------------
+	   F Pos | T positive [0.0, 339.0] 
+Q2= 1.0 MCC  1.0 PRECISION  1.0
+Threshold  1e-05
+	   T Neg | F negative [500.0, 0.0]
+	   ------------------
+	   F Pos | T positive [1.0, 338.0] 
+Q2= 0.99880810488677 MCC  0.9975269557449312 PRECISION  0.9970501474926253
