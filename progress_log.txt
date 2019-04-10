@@ -1,0 +1,109 @@
+3-4-2019
+First step : gather the structures to perform the structural alignment
+
+PDB_ids.txt --> 306 single chains with K dom & resolution < 3A
+tabularResults.csv --> source file of PDB_ids.txt
+Selected 1KTH as a representative: no mutations, complete domain and little other prot, single chain, res<1A
+eFold_ids.txt --> eFold resulting ids. Query = 1kth & parameters as preset.
+reslist.dat --> source file of eFold_ids.txt
+cross_ref_ids --> 298 single chain ids annotated as K, with good res & matched by eFold
+cross_ref_ids1.txt --> same as cross_ref_ids but the Pdb ids are in lowercase, fit for fasta extraction
+cross_ref_uniq_ids.txt --> cross_ref_ids1 cleaned of the multiple chain structures --> 161 ids
+
+7-4-2019
+Extract the sequences from the multifasta --> using Extract_fasta.py [source = Extract_ProtSeq.py]
+$ python3 Extract_fasta.py cross_ref_uniq_ids.txt pdb_seqres.txt cross_ref.fasta
+[] # --> All is well
+
+Clusterize the sequences to remove redundancy
+Install blastclust from file (apparently it's discontinued) 
+$ ./blastclust -i ../../cross_ref.fasta -L 0.95 -s99 -o clusters.txt
+clusters.txt --> all the clusters from cross_ref.fasta
+
+Selecting a good representative for each cluster
+Compare the cluster members on their resolution with Cluster_resol.py and then procede manually.
+res_ids.txt --> file with ids as in pdb_seqres and resolution from tabularResults.csv
+$ python3 Cluster_resol.py res_ids.txt clusters.txt
+str_align_ids.txt --> ids of proteins for the structural alignment
+
+Manual assessment
+Some clusters are majorly composed of the same structure, this is somwhat skewed i believe
+On this basis and on the presence of engineered mut i exclude: 6bx8_B, 4u30, 
+Excluded 
+5nx3, 5nx1 too short and engineered heavily
+Excluded 3fp7 too short
+Included  3m7q but has expression tags, i hope this doesn't flip the model
+Should i include 5nmv_K ? almost double the size of the others
+
+Second step: produce the sequence alignment based on structural alignment
+
+Using eFold in multiple alignment mode, insert a file with the ids
+str_align_ids --> ids of str used to build the alignment, : separated for eFold
+fasta.seq --> alignment output of eFold
+Trim the alignment to exclude the begin and end gaps. Trimmed until the first UPPER character
+$ python3 align_trimmer.py fasta.seq trim_alig.fasta
+trim_alig.fasta --> trimmed alignment ready for HMMER
+
+Third step: Build the HMM
+$ hmmbuild baby.hmm trim_align.fasta 
+hmmbuild_outp.txt --> output to screen of hmmbuild
+Build the HMM logo above bg --> cute but can't save it...
+Test the untrimmed alignment -->  logo stays quite similar
+$ hmmbuild new.hmm fasta.seq
+
+Fourth step: Build the testing sets
+Negative set
+neg_ids --> reviewed NOT pfam PF00014, length:[40 TO *]
+$ sort -R neg_ids.txt | head -n 500 > rd_neg_ids.txt 
+rd_neg_ids --> 500 ids extracted at random from neg_ids
+$ python3 Extract_fasta.py rd_neg_ids.txt ../uniprot_sprot.fasta negative.fasta
+negative.fasta --> multifasta of the randomised negative sets (500 seqs)
+
+Positive set
+Starting out with all of the available kunitz domain
+pos_ids --> reviewed AND pfam pf00014, length:[40 TO *]
+Need to remove the sequences used to build the alignment...
+Map PDB_ids to uniprot ids on UniProt
+msa_unids.txt --> uniprot ids of the aligned structures just 15 --> was redundancy really eliminated?
+Now delete msa_unids from pos_ids.txt
+$ grep -v -f msa_unids.txt pos_ids.txt > clean_pos_ids.txt
+clean_pos_ids.txt --> positive set ids without the aligned structures
+$ python3 Extract_fasta.py clean_pos_ids.txt ../uniprot_sprot.fasta positive.fasta
+positive.fasta --> multifasta of the cleaned positive sets
+
+
+Fifth step: Testing the predictor on the negative and positive sets
+$ hmmsearch -o pos.hmmsearch --noali --max baby.hmm positive.fasta
+pos.hmmsearch --> positive set hits of hmmsearch
+for the negative set options --max -E allow to get hits even if the e-val is shit
+$ hmmsearch -o neg.hmmsearch --noali --max -E 10000 baby.hmm negative.fasta
+neg.hmmsearch --> negative set hits of hmmsearch
+
+8-4-2019
+Sixth step: Prepare results for perfomance analyisis
+Negative set
+Extract e-val and Uniprot identifier
+$ tail -n +21 neg.hmmsearch |head -n 237 |cut -b 1-81 | awk '{print $NF, $1, $4}' |sed 's/ /|/g' | cut -d "|" -f 2,4,5| sed 's/|/ /g' > half_neg.hits
+half_neg.hits --> all ids with hits in hmmsearch & their e-val of the neg set
+neg_hits_ids.txt --> ids of the hits in the neg set 
+neg_miss_ids.txt --> ids of the missed ids in the negataive sets
+$ grep -v -f neg_hits_ids.txt rd_neg_ids.txt > neg_miss_ids.txt
+
+Positive set
+Extract e-val and Uniprot identifier
+$ tail -n +18 pos.hmmsearch |head -n 340 |cut -b 1-81 | awk '{print $NF, $1, $4}' |sed 's/ /|/g' | cut -d "|" -f 2,4,5| sed 's/|/ /g' > pos.hits
+pos.hits --> all ids with hits in hmmsearch & their e-val of the positive set
+
+Fuse all positive and negative info in 1 file with the class label
+labeled_data.txt --> all hit data labeled for the class
+Add negative hits
+$ awk '{print $1,$2/500,$3/500,0}' half_neg.hits > labeled_data.txt
+Add missing negatives
+$ awk '{print $1,1,1,0}' neg_miss_ids.txt >> labeled_data.txt
+Add positive hits
+$ awk '{print $1,$2/339,$3/339,1}' pos.hits >> labeled_data.txt
+
+Seventh step: Set up evaluation parameters
+threshold.txt --> file with thresholds to test
+confusionM.py --> script to evaluate the confusionM and other parameters
+performance.sh --> bash script to run the test on different thresholds
