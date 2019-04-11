@@ -17,16 +17,16 @@ def conf_mat(filename,th,sp=-2,cp=-1):
 			else: 
 				j=0
 			confusion_m[i][j] += 1
-	print('''	   T Neg | F negative %r
+	print('''	   T Neg | F positive %r
 	   ------------------
-	   F Pos | T positive %r '''%(confusion_m[0],confusion_m[1]))
+	   F Neg | T positive %r '''%(confusion_m[0],confusion_m[1]))
 	return confusion_m 
 	
 def print_performance(cm):
 	TP = cm[1][1]
 	TN = cm[0][0]
-	FP = cm[1][0]
-	FN = cm[0][1]
+	FP = cm[0][1]
+	FN = cm[1][0]
 	acc = (TP+TN)/(sum(cm[0])+sum(cm[1]))
 	d = ((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))**(1/2)
 	mc=((TP*TN)-(FP*FN))/d
@@ -46,3 +46,4 @@ if __name__ == '__main__':
 	print('Threshold ',th)
 	cm = conf_mat(filename,th,score_pos)
 	print_performance(cm)
+	print()
